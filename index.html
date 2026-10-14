@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rock Paper Scissors Arena</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="game-header">
+      <div class="logo-area">
+        <span class="game-badge">BATTLE ARENA</span>
+        <h1 id="game-title">Rock • Paper • Scissors</h1>
+      </div>
+      
+      <div class="header-controls">
+        <!-- Game Mode Selector -->
+        <div class="mode-switch-container" title="Switch game mode">
+          <button id="mode-classic-btn" class="mode-btn active" data-mode="classic">Classic (3)</button>
+          <button id="mode-rpsls-btn" class="mode-btn" data-mode="rpsls">RPSLS (5)</button>
+        </div>
+
+        <!-- AI Difficulty Selector -->
+        <div class="ai-select-container">
+          <label for="ai-difficulty" class="sr-only">AI Difficulty</label>
+          <select id="ai-difficulty" class="control-select" title="AI Opponent Difficulty">
+            <option value="casual">🤖 AI: Casual</option>
+            <option value="tactical">🧠 AI: Tactical</option>
+          </select>
+        </div>
+
+        <!-- Audio & Rules Buttons -->
+        <div class="utility-buttons">
+          <button id="sound-toggle-btn" class="icon-btn" aria-label="Toggle Sound" title="Sound On / Off (M)">
+            <span id="sound-icon">🔊</span>
+          </button>
+          <button id="rules-btn" class="icon-btn" aria-label="View Rules" title="Rules & How to Play">
+            <span>ℹ️</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Game Layout (Widescreen 16:9 Optimized) -->
+    <div class="game-layout">
+      <!-- Left Column: Weapon Selection Sidebar -->
+      <aside class="game-sidebar">
+        <section class="selection-section">
+          <div class="selection-heading">
+            <span class="selection-badge">YOUR MOVE</span>
+            <h2 class="selection-title">Choose Weapon</h2>
+          </div>
+
+          <div class="weapons-grid" id="weapons-grid">
+            <!-- Classic Weapons -->
+            <button class="weapon-btn" data-choice="rock" id="btn-rock" title="Rock (Key: 1)">
+              <div class="weapon-btn-left">
+                <span class="weapon-icon">🪨</span>
+                <div class="weapon-info">
+                  <span class="weapon-name">Rock</span>
+                  <span class="weapon-beats-hint">Beats Scissors, Lizard</span>
+                </div>
+              </div>
+              <span class="key-hint">1</span>
+            </button>
+
+            <button class="weapon-btn" data-choice="paper" id="btn-paper" title="Paper (Key: 2)">
+              <div class="weapon-btn-left">
+                <span class="weapon-icon">📄</span>
+                <div class="weapon-info">
+                  <span class="weapon-name">Paper</span>
+                  <span class="weapon-beats-hint">Beats Rock, Spock</span>
+                </div>
+              </div>
+              <span class="key-hint">2</span>
+            </button>
+
+            <button class="weapon-btn" data-choice="scissors" id="btn-scissors" title="Scissors (Key: 3)">
+              <div class="weapon-btn-left">
+                <span class="weapon-icon">✂️</span>
+                <div class="weapon-info">
+                  <span class="weapon-name">Scissors</span>
+                  <span class="weapon-beats-hint">Beats Paper, Lizard</span>
+                </div>
+              </div>
+              <span class="key-hint">3</span>
+            </button>
+
+            <!-- RPSLS Extras (Toggled based on mode) -->
+            <button class="weapon-btn rpsls-only hidden" data-choice="lizard" id="btn-lizard" title="Lizard (Key: 4)">
+              <div class="weapon-btn-left">
+                <span class="weapon-icon">🦎</span>
+                <div class="weapon-info">
+                  <span class="weapon-name">Lizard</span>
+                  <span class="weapon-beats-hint">Beats Spock, Paper</span>
+                </div>
+              </div>
+              <span class="key-hint">4</span>
+            </button>
+
+            <button class="weapon-btn rpsls-only hidden" data-choice="spock" id="btn-spock" title="Spock (Key: 5)">
+              <div class="weapon-btn-left">
+                <span class="weapon-icon">🖖</span>
+                <div class="weapon-info">
+                  <span class="weapon-name">Spock</span>
+                  <span class="weapon-beats-hint">Beats Scissors, Rock</span>
+                </div>
+              </div>
+              <span class="key-hint">5</span>
+            </button>
+          </div>
+
+          <div class="sidebar-tips">
+            <span class="tip-icon">⌨️</span>
+            <span>Hotkeys: <kbd>1</kbd>–<kbd>3</kbd> (or <kbd>1</kbd>–<kbd>5</kbd>)</span>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Right Column: Arena Stage, Scores & Match Log -->
+      <div class="game-stage">
+        <!-- Scoreboard -->
+        <section class="scoreboard-section">
+          <div class="score-card player-card">
+            <div class="score-avatar">👤</div>
+            <div class="score-meta">
+              <span class="score-label">YOU</span>
+              <span class="score-value" id="player-score">0</span>
+            </div>
+          </div>
+
+          <div class="score-divider">
+            <div class="vs-pill">VS</div>
+            <div class="streak-badge" title="Current winning streak">
+              🔥 Streak: <span id="current-streak">0</span>
+            </div>
+          </div>
+
+          <div class="score-card cpu-card">
+            <div class="score-meta">
+              <span class="score-label">COMPUTER</span>
+              <span class="score-value" id="cpu-score">0</span>
+            </div>
+            <div class="score-avatar">🤖</div>
+          </div>
+        </section>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-name">Ties:</span>
+            <span class="stat-val" id="ties-score">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-name">Total Matches:</span>
+            <span class="stat-val" id="total-matches">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-name">Win Rate:</span>
+            <span class="stat-val" id="win-rate">0%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-name">Best Streak:</span>
+            <span class="stat-val" id="best-streak">0</span>
+          </div>
+          <button id="reset-score-btn" class="text-btn" title="Reset all score records">Reset Scores</button>
+        </div>
+
+        <!-- Battle Arena Display -->
+        <main class="battle-arena">
+          <div class="arena-fighter player-fighter">
+            <div class="fighter-tag">YOU PICKED</div>
+            <div class="hand-display" id="player-hand-display">
+              <span class="hand-emoji" id="player-emoji">❔</span>
+            </div>
+            <div class="choice-name" id="player-choice-name">Waiting...</div>
+          </div>
+
+          <div class="arena-center">
+            <div id="battle-countdown" class="battle-countdown hidden">READY!</div>
+            <div class="outcome-box" id="outcome-box">
+              <div class="outcome-headline" id="outcome-headline">Choose your weapon!</div>
+              <p class="outcome-detail" id="outcome-detail">First to test fate? Pick your weapon on the left or press 1-5.</p>
+            </div>
+          </div>
+
+          <div class="arena-fighter cpu-fighter">
+            <div class="fighter-tag">COMPUTER PICKED</div>
+            <div class="hand-display" id="cpu-hand-display">
+              <span class="hand-emoji" id="cpu-emoji">❔</span>
+            </div>
+            <div class="choice-name" id="cpu-choice-name">Waiting...</div>
+          </div>
+        </main>
+
+        <!-- Match History Drawer / Section -->
+        <section class="history-section">
+          <div class="history-header">
+            <h3>Round History</h3>
+            <button id="clear-history-btn" class="text-btn">Clear Log</button>
+          </div>
+          <div class="history-list" id="history-list">
+            <div class="empty-history">No rounds played yet. Make your first move on the left!</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="game-footer">
+      <p>Pro-tip: Use keyboard keys <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> (and <kbd>4</kbd> <kbd>5</kbd> in RPSLS) or press <kbd>M</kbd> to toggle audio.</p>
+    </footer>
+  </div>
+
+  <!-- Rules Modal -->
+  <div id="rules-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">How To Play</h2>
+        <button id="close-modal-btn" class="close-btn" aria-label="Close rules">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="rules-group">
+          <h3>Classic Mode (Rock • Paper • Scissors)</h3>
+          <ul>
+            <li><strong>Rock</strong> 🪨 crushes <strong>Scissors</strong> ✂️</li>
+            <li><strong>Paper</strong> 📄 covers <strong>Rock</strong> 🪨</li>
+            <li><strong>Scissors</strong> ✂️ cuts <strong>Paper</strong> 📄</li>
+          </ul>
+        </div>
+
+        <div class="rules-group highlight-box">
+          <h3>RPSLS Mode (Expanded 5-Way Game)</h3>
+          <p class="flavor-text">Invented by Sam Kass and Karen Bryla, popularized by The Big Bang Theory to reduce ties:</p>
+          <ul>
+            <li>✂️ <strong>Scissors</strong> cuts 📄 <strong>Paper</strong></li>
+            <li>📄 <strong>Paper</strong> covers 🪨 <strong>Rock</strong></li>
+            <li>🪨 <strong>Rock</strong> crushes 🦎 <strong>Lizard</strong></li>
+            <li>🦎 <strong>Lizard</strong> poisons 🖖 <strong>Spock</strong></li>
+            <li>🖖 <strong>Spock</strong> smashes ✂️ <strong>Scissors</strong></li>
+            <li>✂️ <strong>Scissors</strong> decapitates 🦎 <strong>Lizard</strong></li>
+            <li>🦎 <strong>Lizard</strong> eats 📄 <strong>Paper</strong></li>
+            <li>📄 <strong>Paper</strong> disproves 🖖 <strong>Spock</strong></li>
+            <li>🖖 <strong>Spock</strong> vaporizes 🪨 <strong>Rock</strong></li>
+            <li>🪨 <strong>Rock</strong> crushes ✂️ <strong>Scissors</strong></li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-ok-btn" class="action-btn">Got It!</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
