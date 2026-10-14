@@ -1,6 +1,7 @@
 /**
  * Rock Paper Scissors (and RPSLS) Arena
- * A feature-rich browser game with animations, sound effects, stats, and tactical AI.
+ * A feature-rich browser game with animations, sound effects, stats, tactical AI,
+ * telemetry dashboard, and auto-play engine.
  */
 
 // ==========================================
@@ -179,7 +180,6 @@ class OpponentAI {
     const available = MODES[mode];
 
     if (difficulty === 'casual' || this.playerHistory.length < 2) {
-      // Pure random
       return available[Math.floor(Math.random() * available.length)];
     }
 
@@ -201,7 +201,7 @@ class OpponentAI {
       }
     }
 
-    // 3. 60% chance to counter player's likely move, 40% random to avoid predictability
+    // 3. 65% chance to counter player's likely move, 35% random to avoid predictability
     if (Math.random() < 0.65) {
       const counters = available.filter(candidate => {
         const weapon = WEAPONS[candidate];
@@ -231,7 +231,7 @@ class GameController {
     this.currentMode = 'classic';
     this.isFighting = false;
 
-    // Scores
+    // Scores & Match Counts
     this.playerScore = 0;
     this.cpuScore = 0;
     this.ties = 0;
@@ -239,6 +239,20 @@ class GameController {
     this.bestStreak = 0;
     this.totalMatches = 0;
     this.history = [];
+
+    // Per-Move Telemetry Stats
+    this.moveStats = {
+      rock: { picks: 0, wins: 0, losses: 0, ties: 0 },
+      paper: { picks: 0, wins: 0, losses: 0, ties: 0 },
+      scissors: { picks: 0, wins: 0, losses: 0, ties: 0 },
+      lizard: { picks: 0, wins: 0, losses: 0, ties: 0 },
+      spock: { picks: 0, wins: 0, losses: 0, ties: 0 }
+    };
+
+    // Auto-Play Engine State
+    this.isAutoplay = false;
+    this.autoplaySpeed = 800; // ms
+    this.autoplayTimer = null;
 
     // DOM References
     this.dom = {
@@ -275,7 +289,29 @@ class GameController {
       clearHistoryBtn: document.getElementById('clear-history-btn'),
       modal: document.getElementById('rules-modal'),
       closeModalBtn: document.getElementById('close-modal-btn'),
-      modalOkBtn: document.getElementById('modal-ok-btn')
+      modalOkBtn: document.getElementById('modal-ok-btn'),
+
+      // Telemetry Dashboard DOM
+      telemTotalMatches: document.getElementById('telem-total-matches'),
+      telemWinRate: document.getElementById('telem-win-rate'),
+      telemWinMeter: document.getElementById('telem-win-meter'),
+      telemWinsBadge: document.getElementById('telem-wins-badge'),
+      telemLossesBadge: document.getElementById('telem-losses-badge'),
+      telemTiesBadge: document.getElementById('telem-ties-badge'),
+      telemStreakHint: document.getElementById('telem-streak-hint'),
+      telemMvpMove: document.getElementById('telem-mvp-move'),
+      movesModeTag: document.getElementById('moves-mode-tag'),
+      logCountPill: document.getElementById('log-count-pill'),
+
+      // Auto-Play Console DOM
+      autoplayToggleBtn: document.getElementById('autoplay-toggle-btn'),
+      autoplayBtnIcon: document.getElementById('autoplay-btn-icon'),
+      autoplayBtnText: document.getElementById('autoplay-btn-text'),
+      autoplayStatusBadge: document.getElementById('autoplay-status-badge'),
+      autoplayStatusLabel: document.getElementById('autoplay-status-label'),
+      autoplaySpeedSlider: document.getElementById('autoplay-speed-slider'),
+      autoplaySpeedVal: document.getElementById('autoplay-speed-val'),
+      presetPills: document.querySelectorAll('.preset-pill')
     };
 
     this.init();
@@ -284,9 +320,16 @@ class GameController {
   init() {
     this.loadState();
     this.updateStatsUI();
+    this.updateTelemetryUI();
     this.updateSoundIcon();
     this.bindEvents();
     this.applyMode(this.currentMode);
+
+    // Check for auto-play URL param (e.g. ?autoplay=true or #autoplay)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('autoplay') === 'true' || urlParams.get('autoplay') === '1' || window.location.hash === '#autoplay') {
+      setTimeout(() => this.startAutoplay(), 400);
+    }
   }
 
   loadState() {
@@ -301,6 +344,9 @@ class GameController {
         this.bestStreak = parsed.bestStreak || 0;
         this.totalMatches = parsed.totalMatches || 0;
         this.history = Array.isArray(parsed.history) ? parsed.history : [];
+        if (parsed.moveStats) {
+          this.moveStats = Object.assign(this.moveStats, parsed.moveStats);
+        }
         this.renderHistory();
       }
     } catch (e) {
@@ -317,7 +363,8 @@ class GameController {
         currentStreak: this.currentStreak,
         bestStreak: this.bestStreak,
         totalMatches: this.totalMatches,
-        history: this.history.slice(0, 20)
+        moveStats: this.moveStats,
+        history: this.history.slice(0, 50)
       };
       localStorage.setItem('rps_game_state', JSON.stringify(state));
     } catch (e) {
@@ -326,7 +373,7 @@ class GameController {
   }
 
   bindEvents() {
-    // Weapon Buttons
+    // Weapon Buttons (Manual play)
     this.dom.weaponButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const choice = btn.dataset.choice;
@@ -357,7 +404,31 @@ class GameController {
 
     // Reset scores & clear history
     this.dom.resetScoreBtn.addEventListener('click', () => this.resetScores());
-    this.dom.clearHistoryBtn.addEventListener('click', () => this.clearHistory());
+    if (this.dom.clearHistoryBtn) {
+      this.dom.clearHistoryBtn.addEventListener('click', () => this.clearHistory());
+    }
+
+    // Auto-Play Controls
+    if (this.dom.autoplayToggleBtn) {
+      this.dom.autoplayToggleBtn.addEventListener('click', () => this.toggleAutoplay());
+    }
+
+    if (this.dom.autoplaySpeedSlider) {
+      this.dom.autoplaySpeedSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        this.setAutoplaySpeed(val);
+      });
+    }
+
+    this.dom.presetPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const speed = parseInt(pill.dataset.speed, 10);
+        this.setAutoplaySpeed(speed);
+        if (this.dom.autoplaySpeedSlider) {
+          this.dom.autoplaySpeedSlider.value = speed;
+        }
+      });
+    });
 
     // Keyboard controls
     window.addEventListener('keydown', (e) => this.handleKeydown(e));
@@ -381,6 +452,10 @@ class GameController {
     if (e.key.toLowerCase() === 'm') {
       this.dom.soundBtn.click();
     }
+    if (e.key.toLowerCase() === 'a' || (e.code === 'Space' && !this.isFighting)) {
+      e.preventDefault();
+      this.toggleAutoplay();
+    }
     if (e.key === '?') {
       this.openRulesModal();
     }
@@ -395,12 +470,15 @@ class GameController {
       this.dom.modeRpslsBtn.classList.remove('active');
       this.dom.rpslsOnlyButtons.forEach(btn => btn.classList.add('hidden'));
       this.dom.gameTitle.textContent = 'Rock • Paper • Scissors';
+      if (this.dom.movesModeTag) this.dom.movesModeTag.textContent = 'Classic Mode (3 Moves)';
     } else {
       this.dom.modeRpslsBtn.classList.add('active');
       this.dom.modeClassicBtn.classList.remove('active');
       this.dom.rpslsOnlyButtons.forEach(btn => btn.classList.remove('hidden'));
       this.dom.gameTitle.textContent = 'Rock • Paper • Scissors • Lizard • Spock';
+      if (this.dom.movesModeTag) this.dom.movesModeTag.textContent = 'RPSLS Mode (5 Moves)';
     }
+    this.updateTelemetryUI();
   }
 
   updateSoundIcon() {
@@ -418,15 +496,107 @@ class GameController {
   }
 
   // ==========================================
+  // AUTO-PLAY ENGINE
+  // ==========================================
+
+  toggleAutoplay() {
+    if (this.isAutoplay) {
+      this.pauseAutoplay();
+    } else {
+      this.startAutoplay();
+    }
+  }
+
+  startAutoplay() {
+    this.isAutoplay = true;
+    this.sound.playClick();
+
+    if (this.dom.autoplayToggleBtn) {
+      this.dom.autoplayToggleBtn.classList.add('playing');
+      this.dom.autoplayBtnIcon.textContent = '⏸';
+      this.dom.autoplayBtnText.textContent = 'Pause Auto-Play';
+    }
+
+    if (this.dom.autoplayStatusBadge) {
+      this.dom.autoplayStatusBadge.classList.add('active');
+      this.dom.autoplayStatusLabel.textContent = `Auto-Play: ${this.autoplaySpeed}ms`;
+    }
+
+    this.queueNextAutoplay(100);
+  }
+
+  pauseAutoplay() {
+    this.isAutoplay = false;
+    if (this.autoplayTimer) {
+      clearTimeout(this.autoplayTimer);
+      this.autoplayTimer = null;
+    }
+
+    if (this.dom.autoplayToggleBtn) {
+      this.dom.autoplayToggleBtn.classList.remove('playing');
+      this.dom.autoplayBtnIcon.textContent = '▶';
+      this.dom.autoplayBtnText.textContent = 'Start Auto-Play';
+    }
+
+    if (this.dom.autoplayStatusBadge) {
+      this.dom.autoplayStatusBadge.classList.remove('active');
+      this.dom.autoplayStatusLabel.textContent = 'Auto-Play: Off';
+    }
+  }
+
+  setAutoplaySpeed(speedMs) {
+    this.autoplaySpeed = Math.max(100, speedMs);
+    if (this.dom.autoplaySpeedVal) {
+      this.dom.autoplaySpeedVal.textContent = `${this.autoplaySpeed}ms`;
+    }
+
+    if (this.isAutoplay && this.dom.autoplayStatusLabel) {
+      this.dom.autoplayStatusLabel.textContent = `Auto-Play: ${this.autoplaySpeed}ms`;
+    }
+
+    // Update active preset pill highlight
+    this.dom.presetPills.forEach(pill => {
+      const pSpeed = parseInt(pill.dataset.speed, 10);
+      pill.classList.toggle('active', Math.abs(pSpeed - this.autoplaySpeed) < 100);
+    });
+  }
+
+  queueNextAutoplay(delayMs) {
+    if (!this.isAutoplay) return;
+    if (this.autoplayTimer) clearTimeout(this.autoplayTimer);
+
+    const delay = typeof delayMs === 'number' ? delayMs : this.autoplaySpeed;
+    this.autoplayTimer = setTimeout(() => {
+      this.runAutoplayStep();
+    }, delay);
+  }
+
+  runAutoplayStep() {
+    if (!this.isAutoplay) return;
+    if (this.isFighting) {
+      // Retry in 100ms if a fight is currently animating
+      this.queueNextAutoplay(100);
+      return;
+    }
+
+    // Choose random weapon from active mode
+    const available = MODES[this.currentMode];
+    const pick = available[Math.floor(Math.random() * available.length)];
+    this.playRound(pick, true);
+  }
+
+  // ==========================================
   // ROUND EXECUTION & SHOWDOWN
   // ==========================================
 
-  playRound(playerChoiceId) {
+  playRound(playerChoiceId, isAuto = false) {
     if (this.isFighting) return;
     if (!WEAPONS[playerChoiceId]) return;
 
     const playerWeapon = WEAPONS[playerChoiceId];
-    this.sound.playClick();
+    if (!isAuto || this.autoplaySpeed > 300) {
+      this.sound.playClick();
+    }
 
     // AI makes its choice
     const cpuDifficulty = this.dom.aiSelect.value;
@@ -436,7 +606,7 @@ class GameController {
     // Record player move in AI history
     this.ai.recordMove(playerChoiceId);
 
-    // Lock interactions during shake animation
+    // Lock interactions during showdown
     this.isFighting = true;
     this.setControlsDisabled(true);
 
@@ -448,7 +618,13 @@ class GameController {
     // Reset arena presentation
     this.resetArenaVisuals();
 
-    // Show shake fists (✊) and start animation
+    // Fast-track animation if in fast auto-play (<= 350ms)
+    if (isAuto && this.autoplaySpeed <= 350) {
+      this.revealOutcome(playerWeapon, cpuWeapon, true);
+      return;
+    }
+
+    // Standard / Scaled Animated Showdown
     this.dom.playerEmoji.textContent = '✊';
     this.dom.cpuEmoji.textContent = '✊';
     this.dom.playerChoiceName.textContent = 'Ready...';
@@ -457,23 +633,25 @@ class GameController {
     this.dom.playerFighter.classList.add('shaking');
     this.dom.cpuFighter.classList.add('shaking');
 
-    // Show countdown
     this.dom.battleCountdown.classList.remove('hidden');
     this.dom.outcomeBox.classList.add('hidden');
 
+    const stepDelay = isAuto ? Math.max(60, Math.floor(this.autoplaySpeed / 5)) : 160;
     let countStep = 0;
-    const steps = ['3', '2', '1', 'SHOOT!'];
+    const steps = isAuto && this.autoplaySpeed < 600 ? ['READY', 'SHOOT!'] : ['3', '2', '1', 'SHOOT!'];
 
     const countInterval = setInterval(() => {
       if (countStep < steps.length) {
         this.dom.battleCountdown.textContent = steps[countStep];
-        this.sound.playShake();
+        if (!isAuto || this.autoplaySpeed > 400) {
+          this.sound.playShake();
+        }
         countStep++;
       } else {
         clearInterval(countInterval);
-        this.revealOutcome(playerWeapon, cpuWeapon);
+        this.revealOutcome(playerWeapon, cpuWeapon, isAuto);
       }
-    }, 180);
+    }, stepDelay);
   }
 
   resetArenaVisuals() {
@@ -482,7 +660,7 @@ class GameController {
     this.dom.outcomeHeadline.className = 'outcome-headline';
   }
 
-  revealOutcome(playerWeapon, cpuWeapon) {
+  revealOutcome(playerWeapon, cpuWeapon, isAuto = false) {
     // Stop shake
     this.dom.playerFighter.classList.remove('shaking');
     this.dom.cpuFighter.classList.remove('shaking');
@@ -513,6 +691,8 @@ class GameController {
     }
 
     // Apply outcome visual & audio
+    const playAudio = !isAuto || this.autoplaySpeed >= 400;
+
     if (result === 'win') {
       this.playerScore++;
       this.currentStreak++;
@@ -523,7 +703,7 @@ class GameController {
       this.dom.cpuHandDisplay.classList.add('loser-glow');
       this.dom.outcomeHeadline.textContent = '🎉 You Win!';
       this.dom.outcomeHeadline.classList.add('win');
-      this.sound.playWin();
+      if (playAudio) this.sound.playWin();
     } else if (result === 'lose') {
       this.cpuScore++;
       this.currentStreak = 0;
@@ -531,21 +711,31 @@ class GameController {
       this.dom.playerHandDisplay.classList.add('loser-glow');
       this.dom.outcomeHeadline.textContent = '💀 Computer Wins!';
       this.dom.outcomeHeadline.classList.add('lose');
-      this.sound.playLose();
+      if (playAudio) this.sound.playLose();
     } else {
       this.ties++;
       this.dom.playerHandDisplay.classList.add('tie-glow');
       this.dom.cpuHandDisplay.classList.add('tie-glow');
       this.dom.outcomeHeadline.textContent = '🤝 It\'s a Tie!';
       this.dom.outcomeHeadline.classList.add('tie');
-      this.sound.playTie();
+      if (playAudio) this.sound.playTie();
     }
 
     this.totalMatches++;
     this.dom.outcomeDetail.textContent = explanation;
 
-    // Update history
+    // Record Move Telemetry
+    const mStat = this.moveStats[playerWeapon.id];
+    if (mStat) {
+      mStat.picks++;
+      if (result === 'win') mStat.wins++;
+      else if (result === 'lose') mStat.losses++;
+      else if (result === 'tie') mStat.ties++;
+    }
+
+    // Update history stream
     this.addHistoryRecord({
+      round: this.totalMatches,
       result,
       player: playerWeapon,
       cpu: cpuWeapon,
@@ -553,15 +743,22 @@ class GameController {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     });
 
-    // Update stats UI
+    // Update UI & save state
     this.updateStatsUI();
+    this.updateTelemetryUI();
     this.saveState();
 
-    // Re-enable controls
+    // Re-enable controls / schedule next round
+    const unlockDelay = isAuto && this.autoplaySpeed <= 350 ? 50 : 350;
     setTimeout(() => {
       this.setControlsDisabled(false);
       this.isFighting = false;
-    }, 400);
+
+      if (this.isAutoplay) {
+        const nextDelay = Math.max(80, this.autoplaySpeed - unlockDelay);
+        this.queueNextAutoplay(nextDelay);
+      }
+    }, unlockDelay);
   }
 
   setControlsDisabled(disabled) {
@@ -571,42 +768,144 @@ class GameController {
   }
 
   // ==========================================
-  // STATS & HISTORY
+  // STATS & TELEMETRY UI UPDATES
   // ==========================================
 
   updateStatsUI() {
-    this.dom.playerScoreText.textContent = this.playerScore;
-    this.dom.cpuScoreText.textContent = this.cpuScore;
-    this.dom.tiesScoreText.textContent = this.ties;
-    this.dom.currentStreakText.textContent = this.currentStreak;
-    this.dom.bestStreakText.textContent = this.bestStreak;
-    this.dom.totalMatchesText.textContent = this.totalMatches;
+    if (this.dom.playerScoreText) this.dom.playerScoreText.textContent = this.playerScore;
+    if (this.dom.cpuScoreText) this.dom.cpuScoreText.textContent = this.cpuScore;
+    if (this.dom.tiesScoreText) this.dom.tiesScoreText.textContent = this.ties;
+    if (this.dom.currentStreakText) this.dom.currentStreakText.textContent = this.currentStreak;
+    if (this.dom.bestStreakText) this.dom.bestStreakText.textContent = this.bestStreak;
+    if (this.dom.totalMatchesText) this.dom.totalMatchesText.textContent = this.totalMatches;
 
     const winRate = this.totalMatches > 0
       ? Math.round((this.playerScore / this.totalMatches) * 100)
       : 0;
-    this.dom.winRateText.textContent = `${winRate}%`;
+    if (this.dom.winRateText) this.dom.winRateText.textContent = `${winRate}%`;
+  }
+
+  updateTelemetryUI() {
+    // 1. Overview KPIs
+    if (this.dom.telemTotalMatches) {
+      this.dom.telemTotalMatches.textContent = this.totalMatches;
+    }
+
+    const overallWinRate = this.totalMatches > 0
+      ? ((this.playerScore / this.totalMatches) * 100).toFixed(1)
+      : '0.0';
+
+    if (this.dom.telemWinRate) {
+      this.dom.telemWinRate.textContent = `${overallWinRate}%`;
+    }
+
+    if (this.dom.telemWinMeter) {
+      this.dom.telemWinMeter.style.width = `${Math.min(100, Math.max(0, parseFloat(overallWinRate)))}%`;
+    }
+
+    if (this.dom.telemWinsBadge) this.dom.telemWinsBadge.textContent = `W: ${this.playerScore}`;
+    if (this.dom.telemLossesBadge) this.dom.telemLossesBadge.textContent = `L: ${this.cpuScore}`;
+    if (this.dom.telemTiesBadge) this.dom.telemTiesBadge.textContent = `T: ${this.ties}`;
+    if (this.dom.telemStreakHint) {
+      this.dom.telemStreakHint.textContent = `Streak: ${this.currentStreak} (Best: ${this.bestStreak})`;
+    }
+
+    // 2. Per-Move Win-Rates & Analytics
+    const activeMoves = MODES[this.currentMode];
+    let bestMoveId = null;
+    let highestWr = -1;
+
+    activeMoves.forEach(moveId => {
+      const stat = this.moveStats[moveId];
+      if (!stat) return;
+
+      const picks = stat.picks;
+      const share = this.totalMatches > 0
+        ? Math.round((picks / this.totalMatches) * 100)
+        : 0;
+      const wrNum = picks > 0 ? (stat.wins / picks) * 100 : 0;
+      const wrText = wrNum.toFixed(1);
+
+      // Track MVP move (must have at least 1 pick)
+      if (picks > 0 && wrNum > highestWr) {
+        highestWr = wrNum;
+        bestMoveId = moveId;
+      }
+
+      // Update DOM for this move
+      const shareEl = document.getElementById(`${moveId}-share`);
+      const pillEl = document.getElementById(`${moveId}-winrate-pill`);
+      const meterFill = document.getElementById(`${moveId}-meter-fill`);
+      const recordEl = document.getElementById(`${moveId}-record`);
+      const wrTextEl = document.getElementById(`${moveId}-wr-text`);
+
+      if (shareEl) shareEl.textContent = `${picks} picks (${share}%)`;
+      if (recordEl) recordEl.textContent = `${stat.wins}W · ${stat.losses}L · ${stat.ties}T`;
+      if (wrTextEl) wrTextEl.textContent = `Win Rate: ${wrText}%`;
+
+      if (pillEl) {
+        pillEl.textContent = `${wrText}% WR`;
+        pillEl.className = 'move-stat-pill';
+        if (picks === 0) {
+          // Neutral
+        } else if (wrNum >= 50) {
+          pillEl.classList.add('high-wr');
+        } else if (wrNum >= 35) {
+          pillEl.classList.add('med-wr');
+        } else {
+          pillEl.classList.add('low-wr');
+        }
+      }
+
+      if (meterFill) {
+        meterFill.style.width = `${Math.min(100, wrNum)}%`;
+        if (wrNum >= 50) {
+          meterFill.style.background = '#10b981';
+        } else if (wrNum >= 35) {
+          meterFill.style.background = '#f59e0b';
+        } else {
+          meterFill.style.background = '#ef4444';
+        }
+      }
+    });
+
+    // Update MVP Move display
+    if (this.dom.telemMvpMove) {
+      if (bestMoveId && WEAPONS[bestMoveId]) {
+        this.dom.telemMvpMove.textContent = `${WEAPONS[bestMoveId].emoji} ${WEAPONS[bestMoveId].name} (${highestWr.toFixed(0)}%)`;
+      } else {
+        this.dom.telemMvpMove.textContent = '—';
+      }
+    }
   }
 
   addHistoryRecord(record) {
     this.history.unshift(record);
-    if (this.history.length > 20) {
+    if (this.history.length > 50) {
       this.history.pop();
     }
     this.renderHistory();
   }
 
   renderHistory() {
+    if (!this.dom.historyList) return;
+
+    if (this.dom.logCountPill) {
+      this.dom.logCountPill.textContent = `${this.history.length} rounds`;
+    }
+
     if (this.history.length === 0) {
-      this.dom.historyList.innerHTML = '<div class="empty-history">No rounds played yet. Make your first move on the left!</div>';
+      this.dom.historyList.innerHTML = '<div class="empty-history">Telemetry stream initialized. Make a move or toggle Auto-Play above!</div>';
       return;
     }
 
     this.dom.historyList.innerHTML = this.history.map(item => {
       const badgeText = item.result.toUpperCase();
+      const roundLabel = item.round ? `<span class="history-round-num">#${item.round}</span>` : '';
       return `
         <div class="history-item ${item.result}">
           <div class="history-matchup">
+            ${roundLabel}
             <span class="history-badge ${item.result}">${badgeText}</span>
             <span>${item.player.emoji} ${item.player.name} vs ${item.cpu.emoji} ${item.cpu.name}</span>
           </div>
@@ -617,16 +916,25 @@ class GameController {
   }
 
   resetScores() {
-    if (confirm('Are you sure you want to reset all scores and streak statistics?')) {
+    if (confirm('Are you sure you want to reset all scores, move analytics, and telemetry?')) {
       this.sound.playClick();
+      this.pauseAutoplay();
       this.playerScore = 0;
       this.cpuScore = 0;
       this.ties = 0;
       this.currentStreak = 0;
       this.bestStreak = 0;
       this.totalMatches = 0;
+      this.moveStats = {
+        rock: { picks: 0, wins: 0, losses: 0, ties: 0 },
+        paper: { picks: 0, wins: 0, losses: 0, ties: 0 },
+        scissors: { picks: 0, wins: 0, losses: 0, ties: 0 },
+        lizard: { picks: 0, wins: 0, losses: 0, ties: 0 },
+        spock: { picks: 0, wins: 0, losses: 0, ties: 0 }
+      };
       this.ai.reset();
       this.updateStatsUI();
+      this.updateTelemetryUI();
       this.saveState();
     }
   }

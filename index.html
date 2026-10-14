@@ -198,18 +198,201 @@
           </div>
         </main>
 
-        <!-- Match History Drawer / Section -->
-        <section class="history-section">
-          <div class="history-header">
-            <h3>Round History</h3>
-            <button id="clear-history-btn" class="text-btn">Clear Log</button>
-          </div>
-          <div class="history-list" id="history-list">
-            <div class="empty-history">No rounds played yet. Make your first move on the left!</div>
-          </div>
-        </section>
       </div>
     </div>
+
+    <!-- Telemetry Dashboard (Beneath Game Board) -->
+    <section class="telemetry-dashboard" id="telemetry-dashboard">
+      <!-- Dashboard Header with Autoplay Controls -->
+      <div class="telemetry-header">
+        <div class="telemetry-title-block">
+          <div class="telemetry-badge">
+            <span class="pulse-dot"></span> LIVE TELEMETRY
+          </div>
+          <h2 class="telemetry-title">Game Analytics & Auto-Play</h2>
+        </div>
+
+        <!-- Auto-Play Controller Console -->
+        <div class="autoplay-console">
+          <div class="autoplay-status-badge" id="autoplay-status-badge">
+            <span class="status-indicator-dot" id="status-indicator-dot"></span>
+            <span id="autoplay-status-label">Auto-Play: Off</span>
+          </div>
+
+          <button id="autoplay-toggle-btn" class="autoplay-btn" title="Toggle Auto-Play (Key: A or Space)">
+            <span id="autoplay-btn-icon">▶</span>
+            <span id="autoplay-btn-text">Start Auto-Play</span>
+          </button>
+
+          <div class="autoplay-slider-wrap">
+            <div class="slider-label-row">
+              <label for="autoplay-speed-slider">Speed</label>
+              <span id="autoplay-speed-val" class="speed-val">800ms</span>
+            </div>
+            <input type="range" id="autoplay-speed-slider" min="150" max="2000" step="50" value="800">
+          </div>
+
+          <div class="autoplay-presets">
+            <button class="preset-pill" data-speed="250">⚡ Fast (0.25s)</button>
+            <button class="preset-pill active" data-speed="800">⏱ Normal (0.8s)</button>
+            <button class="preset-pill" data-speed="1500">🐢 Chill (1.5s)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Telemetry Overview KPI Cards -->
+      <div class="telemetry-kpis">
+        <div class="telem-card">
+          <span class="telem-label">Total Matches</span>
+          <span class="telem-number" id="telem-total-matches">0</span>
+          <span class="telem-hint">Live simulated + manual</span>
+        </div>
+
+        <div class="telem-card telem-winrate-card">
+          <span class="telem-label">Overall Win Rate</span>
+          <span class="telem-number highlight-win" id="telem-win-rate">0.0%</span>
+          <div class="telem-meter-track">
+            <div class="telem-meter-bar" id="telem-win-meter" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="telem-card">
+          <span class="telem-label">Score Breakdown</span>
+          <div class="telem-split-row">
+            <span class="telem-split win" id="telem-wins-badge">W: 0</span>
+            <span class="telem-split loss" id="telem-losses-badge">L: 0</span>
+            <span class="telem-split tie" id="telem-ties-badge">T: 0</span>
+          </div>
+          <span class="telem-hint" id="telem-streak-hint">Streak: 0 (Best: 0)</span>
+        </div>
+
+        <div class="telem-card">
+          <span class="telem-label">Best Move (MVP)</span>
+          <span class="telem-number mvp-value" id="telem-mvp-move">—</span>
+          <span class="telem-hint" id="telem-mvp-hint">Highest win-rate move</span>
+        </div>
+      </div>
+
+      <!-- Real-Time Win-Rates for Each Move -->
+      <div class="telemetry-section-block">
+        <div class="section-subheading">
+          <span class="subheading-title">Move Performance & Real-Time Win-Rates</span>
+          <span class="subheading-tag" id="moves-mode-tag">Classic Mode</span>
+        </div>
+
+        <div class="move-metrics-grid" id="move-metrics-grid">
+          <!-- Move: Rock -->
+          <div class="move-stat-card" data-move="rock" id="stat-card-rock">
+            <div class="move-stat-header">
+              <span class="move-stat-emoji">🪨</span>
+              <div class="move-stat-meta">
+                <span class="move-stat-name">Rock</span>
+                <span class="move-stat-share" id="rock-share">0 picks (0%)</span>
+              </div>
+              <span class="move-stat-pill" id="rock-winrate-pill">0.0% WR</span>
+            </div>
+            <div class="move-meter-container">
+              <div class="move-meter-fill" id="rock-meter-fill" style="width: 0%"></div>
+            </div>
+            <div class="move-stat-footer">
+              <span class="record-text" id="rock-record">0W · 0L · 0T</span>
+              <span class="wr-detail" id="rock-wr-text">Win Rate: 0.0%</span>
+            </div>
+          </div>
+
+          <!-- Move: Paper -->
+          <div class="move-stat-card" data-move="paper" id="stat-card-paper">
+            <div class="move-stat-header">
+              <span class="move-stat-emoji">📄</span>
+              <div class="move-stat-meta">
+                <span class="move-stat-name">Paper</span>
+                <span class="move-stat-share" id="paper-share">0 picks (0%)</span>
+              </div>
+              <span class="move-stat-pill" id="paper-winrate-pill">0.0% WR</span>
+            </div>
+            <div class="move-meter-container">
+              <div class="move-meter-fill" id="paper-meter-fill" style="width: 0%"></div>
+            </div>
+            <div class="move-stat-footer">
+              <span class="record-text" id="paper-record">0W · 0L · 0T</span>
+              <span class="wr-detail" id="paper-wr-text">Win Rate: 0.0%</span>
+            </div>
+          </div>
+
+          <!-- Move: Scissors -->
+          <div class="move-stat-card" data-move="scissors" id="stat-card-scissors">
+            <div class="move-stat-header">
+              <span class="move-stat-emoji">✂️</span>
+              <div class="move-stat-meta">
+                <span class="move-stat-name">Scissors</span>
+                <span class="move-stat-share" id="scissors-share">0 picks (0%)</span>
+              </div>
+              <span class="move-stat-pill" id="scissors-winrate-pill">0.0% WR</span>
+            </div>
+            <div class="move-meter-container">
+              <div class="move-meter-fill" id="scissors-meter-fill" style="width: 0%"></div>
+            </div>
+            <div class="move-stat-footer">
+              <span class="record-text" id="scissors-record">0W · 0L · 0T</span>
+              <span class="wr-detail" id="scissors-wr-text">Win Rate: 0.0%</span>
+            </div>
+          </div>
+
+          <!-- Move: Lizard (RPSLS) -->
+          <div class="move-stat-card rpsls-only hidden" data-move="lizard" id="stat-card-lizard">
+            <div class="move-stat-header">
+              <span class="move-stat-emoji">🦎</span>
+              <div class="move-stat-meta">
+                <span class="move-stat-name">Lizard</span>
+                <span class="move-stat-share" id="lizard-share">0 picks (0%)</span>
+              </div>
+              <span class="move-stat-pill" id="lizard-winrate-pill">0.0% WR</span>
+            </div>
+            <div class="move-meter-container">
+              <div class="move-meter-fill" id="lizard-meter-fill" style="width: 0%"></div>
+            </div>
+            <div class="move-stat-footer">
+              <span class="record-text" id="lizard-record">0W · 0L · 0T</span>
+              <span class="wr-detail" id="lizard-wr-text">Win Rate: 0.0%</span>
+            </div>
+          </div>
+
+          <!-- Move: Spock (RPSLS) -->
+          <div class="move-stat-card rpsls-only hidden" data-move="spock" id="stat-card-spock">
+            <div class="move-stat-header">
+              <span class="move-stat-emoji">🖖</span>
+              <div class="move-stat-meta">
+                <span class="move-stat-name">Spock</span>
+                <span class="move-stat-share" id="spock-share">0 picks (0%)</span>
+              </div>
+              <span class="move-stat-pill" id="spock-winrate-pill">0.0% WR</span>
+            </div>
+            <div class="move-meter-container">
+              <div class="move-meter-fill" id="spock-meter-fill" style="width: 0%"></div>
+            </div>
+            <div class="move-stat-footer">
+              <span class="record-text" id="spock-record">0W · 0L · 0T</span>
+              <span class="wr-detail" id="spock-wr-text">Win Rate: 0.0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Round History Log -->
+      <div class="telemetry-section-block">
+        <div class="log-stream-header">
+          <div class="log-stream-title">
+            <span class="stream-dot"></span>
+            <span class="subheading-title">Live Round History Stream</span>
+            <span class="log-counter-pill" id="log-count-pill">0 rounds</span>
+          </div>
+          <button id="clear-history-btn" class="text-btn">Clear Log</button>
+        </div>
+        <div class="live-history-stream" id="history-list">
+          <div class="empty-history">Telemetry stream initialized. Make a move or toggle Auto-Play above!</div>
+        </div>
+      </div>
+    </section>
 
     <!-- Footer -->
     <footer class="game-footer">
