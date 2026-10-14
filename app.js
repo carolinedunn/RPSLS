@@ -640,7 +640,8 @@ class GameController {
     let countStep = 0;
     const steps = isAuto && this.autoplaySpeed < 600 ? ['READY', 'SHOOT!'] : ['3', '2', '1', 'SHOOT!'];
 
-    const countInterval = setInterval(() => {
+    let countInterval = null;
+    countInterval = setInterval(() => {
       if (countStep < steps.length) {
         this.dom.battleCountdown.textContent = steps[countStep];
         if (!isAuto || this.autoplaySpeed > 400) {
@@ -648,7 +649,7 @@ class GameController {
         }
         countStep++;
       } else {
-        clearInterval(countInterval);
+        if (countInterval) clearInterval(countInterval);
         this.revealOutcome(playerWeapon, cpuWeapon, isAuto);
       }
     }, stepDelay);
