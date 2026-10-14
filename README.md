@@ -25,12 +25,18 @@ An interactive, animated Rock-Paper-Scissors game where a user plays against a c
   - Current winning streak and Best streak record.
   - Round History log displaying the outcome and rationale for recent matches.
   - Persistent state saved to browser `localStorage`.
+- **Auto-Play Engine & Live Telemetry Dashboard**:
+  - Automated continuous play with adjustable speed presets: ⚡ Fast (0.25s), ⏱ Normal (0.8s), and 🐢 Chill (1.5s).
+  - Dynamic telemetry tracking move pick distributions, per-weapon win rates, and MVP best-move detection.
+  - Live round history feed streaming results, matchup breakdowns, and tactical insights.
+  - See full verification in the [🧪 Test Results Summary](TEST_RESULTS.md).
 - **Keyboard Shortcuts**:
   - <kbd>1</kbd>: Rock
   - <kbd>2</kbd>: Paper
   - <kbd>3</kbd>: Scissors
   - <kbd>4</kbd>: Lizard *(RPSLS mode)*
   - <kbd>5</kbd>: Spock *(RPSLS mode)*
+  - <kbd>A</kbd> or <kbd>Space</kbd>: Start / Pause Auto-Play
   - <kbd>M</kbd>: Mute / Unmute sound
   - <kbd>?</kbd>: Open rules & guide
   - <kbd>Esc</kbd>: Close modal
